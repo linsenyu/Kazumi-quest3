@@ -13,44 +13,51 @@ class ExternalPlaybackLauncher {
     required this.referer,
   });
 
-  Future<void> launch() async {
+  Future<bool> launch() async {
     final currentVideoUrl = videoUrl();
     final currentReferer = referer();
     if ((Platform.isAndroid || Platform.isWindows) && currentReferer.isEmpty) {
-      if (await ExternalPlayer.launchURLWithMIME(
-          currentVideoUrl, 'video/mp4')) {
+      if (await ExternalPlayer.launchURLWithMIME(currentVideoUrl, 'video/mp4')) {
         KazumiDialog.dismiss();
         KazumiDialog.showToast(
           message: '尝试唤起外部播放器',
         );
+        return true;
       } else {
         KazumiDialog.showToast(
           message: '唤起外部播放器失败',
         );
+        return false;
       }
     } else if (Platform.isMacOS || Platform.isIOS) {
       if (await ExternalPlayer.launchURLWithReferer(
-          currentVideoUrl, currentReferer)) {
+        currentVideoUrl,
+        currentReferer,
+      )) {
         KazumiDialog.dismiss();
         KazumiDialog.showToast(
           message: '尝试唤起外部播放器',
         );
+        return true;
       } else {
         KazumiDialog.showToast(
           message: '唤起外部播放器失败',
         );
+        return false;
       }
     } else if (Platform.isLinux && currentReferer.isEmpty) {
       KazumiDialog.dismiss();
       if (await canLaunchUrlString(currentVideoUrl)) {
-        launchUrlString(currentVideoUrl);
+        await launchUrlString(currentVideoUrl);
         KazumiDialog.showToast(
           message: '尝试唤起外部播放器',
         );
+        return true;
       } else {
         KazumiDialog.showToast(
           message: '无法使用外部播放器',
         );
+        return false;
       }
     } else {
       if (currentReferer.isEmpty) {
@@ -62,6 +69,7 @@ class ExternalPlaybackLauncher {
           message: '暂不支持该规则',
         );
       }
+      return false;
     }
   }
 }

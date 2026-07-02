@@ -247,6 +247,18 @@ class PlayerController {
             forceSyncPlaying: true, forceSyncPosition: 0.0);
       }
     }
+
+    const questExternalMode = bool.fromEnvironment(
+      'KAZUMI_QUEST_EXTERNAL_MODE',
+      defaultValue: false,
+    );
+    if (Platform.isAndroid && questExternalMode && !isLocalPlayback) {
+      unawaited(Future<void>.delayed(
+        const Duration(milliseconds: 350),
+        launchExternalPlayer,
+      ));
+    }
+
     return true;
   }
 
@@ -371,7 +383,36 @@ class PlayerController {
   }
 
   Future<void> launchExternalPlayer() async {
-    await externalPlayback.launch();
+    final shouldReleaseInternalPlayer = Platform.isAndroid;
+    final wasPlaying = playback.playerPlaying;
+
+    if (shouldReleaseInternalPlayer && wasPlaying) {
+      await pause(enableSync: false);
+    }
+
+    final launched = await externalPlayback.launch();
+    if (!launched) {
+      if (shouldReleaseInternalPlayer && wasPlaying) {
+        await play(enableSync: false);
+      }
+      return;
+    }
+
+    if (!shouldReleaseInternalPlayer) {
+      return;
+    }
+
+    try {
+      await dispose(disposeSyncPlayController: false);
+      KazumiLogger().i(
+        'PlayerController: released internal player after external launch',
+      );
+    } catch (e) {
+      KazumiLogger().e(
+        'PlayerController: failed to release internal player after external launch',
+        error: e,
+      );
+    }
   }
 
   Future<void> createSyncPlayRoom(
